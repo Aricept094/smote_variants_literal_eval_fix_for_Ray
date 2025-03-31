@@ -645,15 +645,44 @@ def model_selection(
 
     best_row = pdf[pdf[f"{score}_mean"] == pdf[f"{score}_mean"].max()].iloc[0]
 
+    # --- DEBUGGING START ---
+    oversampler_params_str = str(best_row[f"{score}_oversampler_params"]) # Ensure it's a string
+    classifier_params_str = str(best_row[f"{score}_classifier_params"])   # Ensure it's a string
+    print(f"\n--- SMOTE-VARIANTS DEBUG ---")
+    print(f"Score: {score}")
+    print(f"Best Row Index: {best_row.name}")
+    print(f"Oversampler Params String: {oversampler_params_str!r}")
+    print(f"Classifier Params String (Original):  {classifier_params_str!r}") # Original string
+    print(f"--- END SMOTE-VARIANTS DEBUG ---\n")
+
+    # --- FIX START ---
+    # Replace NumPy types with standard Python literals before literal_eval
+    # Use temporary variable to avoid modifying original string used elsewhere if needed
+    temp_classifier_params_str = classifier_params_str
+    temp_classifier_params_str = temp_classifier_params_str.replace('np.False_', 'False')
+    temp_classifier_params_str = temp_classifier_params_str.replace('np.True_', 'True')
+    # Be careful with np.str_ replacement - this simple version might break if
+    # your actual string values contain ")'" sequences. A regex might be safer
+    # but let's try the simple approach first.
+    temp_classifier_params_str = temp_classifier_params_str.replace("np.str_('", "'").replace("')", "'")
+    # Add replacements for other numpy types if they appear (e.g., np.int_, np.float_)
+    # Example: temp_classifier_params_str = temp_classifier_params_str.replace("np.int_(", "").replace(")", "")
+    # Example: temp_classifier_params_str = temp_classifier_params_str.replace("np.float64(", "").replace(")", "")
+
+    print(f"Classifier Params String (Attempted Fix): {temp_classifier_params_str!r}") # See the fixed string
+    # --- FIX END ---
+
+
     oversampler = (
         best_row["oversampler_module"],
         best_row["oversampler"],
-        literal_eval(best_row[f"{score}_oversampler_params"]),
+        literal_eval(oversampler_params_str), # Use the original string variable
     )
     classifier = (
         best_row["classifier_module"],
         best_row["classifier"],
-        literal_eval(best_row[f"{score}_classifier_params"]),
+        # Use the FIXED string variable for the classifier
+        literal_eval(temp_classifier_params_str),
     )
 
     return instantiate_obj(oversampler), instantiate_obj(classifier)
